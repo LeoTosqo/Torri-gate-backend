@@ -2,6 +2,7 @@ const USER = require("../models/user");
 const bcrypt = require("bcryptjs");
 const generateToken = require("../helpers/generateToken");
 const { sendWelcomeEmail } = require("../email/sendEmail");
+const jwt = require("jsonwebtoken");
 
 //null undefined
 const handleRegister = async (req, res) => {
@@ -58,23 +59,22 @@ const handleVerifyEmail = async (req, res) => {
   const { token } = req.params;
 
   try {
+    //1.find user input correct token
     const user = await USER.findOne({
       verificationToken: token,
-      
     });
     if (!user) {
-      return res
-        .status(404)
-        .json({ message: "Invalid verification token", });
+      return res.status(404).json({ message: "Invalid verification token" });
     }
     //2, check if token has expired
-    if(user.verificationTokenExpires< Date.now()){
-      return res.status(400).json({message: "verification token has expired",
-      email: user.email});
+    if (user.verificationTokenExpires < Date.now()) {
+      return res
+        .status(400)
+        .json({ message: "verification token has expired", email: user.email });
     }
     //3, check if users already verify
-    if (user.isVerified){
-      return res.status(400).json({message: "Email is already verified"})
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Email is already verified" });
     }
     //mark the user as verified
     user.isVerified = true;
@@ -89,5 +89,61 @@ const handleVerifyEmail = async (req, res) => {
     console.error(error);
     res.status(500).json({ message: error.message });
   }
-}; 
-module.exports = { handleRegister, handleVerifyEmail };
+};
+
+// handle Login
+
+const handleLogin = async (req, res) => {
+  const { email, password, role } = req.body;
+  if (!email || !password || !role) {
+    return res
+      .status(400)
+      .json({ message: "Email, password, and role are required" });
+  }
+  try {
+    const user = await USER.findOne({ email });
+    if (!user) {
+      return res
+        .status(401)
+        .json({ message: "Account Not Found,Please Register" });
+    }
+
+    if (user.role !== role) {
+      return res.status(403).json({ message: "Access Denied for this role" });
+    }
+    if (!user.isVerified) {
+      return res
+        .status(403)
+        .json({ message: "Email Not Verified , Check your Mail" });
+    }
+
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ message: "Invalid email or Password" });
+    }
+
+    //generating a token (validity, period)
+
+    const token = jwt.sign(
+      { email: user.email, role: user.role },
+      process.env.JWT_SECRET,{expiresIn: "3 days"}
+    );
+
+    return res.status(200).json({
+      success: true,
+      token,
+      user: {
+        fullName: user.fullName,
+        email: user.email,
+        profilePicture: user.profilePicture,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { handleRegister, handleVerifyEmail, handleLogin };

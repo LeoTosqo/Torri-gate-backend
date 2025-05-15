@@ -9,7 +9,7 @@ const userRouter = require("./routes/userRouter");
 //middleware
 app.use(express.json())
 app.use(cors())
-//routes  
+//routes 
 app.get("/", (req, res) =>{
     res.status(200).json({
         success: true, message: "Torii Gate Server"

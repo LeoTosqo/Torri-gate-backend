@@ -1,8 +1,8 @@
 const USER = require("../models/user");
 const bcrypt = require("bcryptjs");
-const generateToken = require("../helpers/generateToken");
-const { sendWelcomeEmail } = require("../email/sendEmail");
 const jwt = require("jsonwebtoken");
+const generateToken = require("../helpers/generateToken");
+const { sendWelcomeEmail, sendResetEmail } = require("../email/sendEmail");
 
 //null undefined
 const handleRegister = async (req, res) => {
@@ -127,7 +127,8 @@ const handleLogin = async (req, res) => {
 
     const token = jwt.sign(
       { email: user.email, role: user.role },
-      process.env.JWT_SECRET,{expiresIn: "3 days"}
+      process.env.JWT_SECRET,
+      { expiresIn: "3 days" }
     );
 
     return res.status(200).json({
@@ -146,4 +147,115 @@ const handleLogin = async (req, res) => {
   }
 };
 
-module.exports = { handleRegister, handleVerifyEmail, handleLogin };
+const resendVerificationEmail = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  try {
+    const user = await USER.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
+    }
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Email is already verified" });
+    }
+    //generate token again
+    const newToken = generateToken();
+    const tokenExpires = Date.now() + 24 * 60 * 60 * 1000;
+
+    user.verificationToken = newToken;
+    user.verificationTokenExpires = tokenExpires;
+    await user.save();
+    //Send an email
+    const clientUrl = `${process.env.FRONTEND_URL}/verify-email/${newTokenb}`;
+    await sendWelcomeEmail({
+      email: user.email,
+      fullName: user.fullName,
+      clientUrl,
+    });
+
+    return res
+      .status(201)
+      .json({ success: true, message: "Verification Email sent" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const handleForgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+  try {
+    const user = await USER.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "User not Found" });
+    }
+    const token = generateToken();
+    user.resetPasswordToken = token;
+    user.resetPasswordTokenExpires = Date.now() + 60 * 60 * 1000; // 1hr
+    await user.save();
+
+    //send the mail
+    const clientUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
+    await sendResetEmail({
+      fullName: user.fullName,
+      email: user.email,
+      clientUrl,
+    });
+
+    res.status(200).json({
+      success: true,
+      token,
+      message: "Password  resent Link sent to your email",
+    }); 
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({ message: error.message });
+  }
+};
+const handleResetPassword = async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ message: "Provide token and new password" });
+  }
+  try {
+    const user = await USER.findOne({
+      resetPasswordToken: token,
+      resetPasswordTokenExpires: { $gt: Date.now() },
+    });
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "invalid or expired link, try again" });
+    }
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(password, salt);
+    user.password = hashedPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordTokenExpires = undefined;
+    await user.save();
+    res
+      .status(200)
+      .json({ message: "password reset successfully", success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = {
+  handleRegister,
+  handleVerifyEmail,
+  handleLogin,
+  resendVerificationEmail,
+  handleForgotPassword,
+  handleResetPassword,
+};

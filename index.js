@@ -19,7 +19,7 @@ app.get("/", (req, res) =>{
 app.use('/api/auth',userRouter);
 
 
-//eerror route
+//error route
 
 app.use((req, res)=> {
     res.status(404).json({success: false, message: 'ROUTE NOT FOUND'});

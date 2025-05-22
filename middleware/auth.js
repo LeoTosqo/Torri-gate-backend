@@ -35,8 +35,9 @@ const requirePermissions = (...roles)=>{
         if (!roles.includes(req.user.role)){
             return res.status(403).json({message: "Unauthorized to access this route"})
         }
+        next();
     };
-    next();
+    
 };
 
 module.exports = {isLoggedIn, requirePermissions};

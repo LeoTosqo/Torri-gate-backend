@@ -253,12 +253,45 @@ const handleResetPassword = async (req, res) => {
 };
 
 const handleGetUser = async (req, res) => {
-  res.se("get user");
+  const { userId } = req.user;
+  try {
+    const user = await USER.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "user not found" });
+    }
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
 };
 
+
+
 const handleUpdateUser = async (req, res) => {
-  res.send("change user");
+
+const {fullName,phoneNumber} = req.body
+const {userId} = req.user
+if(!fullName || !phoneNumber){
+  return res.status(400).json({message: "Provide fullName and phone number"})
+}
+try {
+  const user= await USER.findById(userId)
+  if (!user){
+    return res.status(404).json({message: "user not found"})
+  }
+  user.fullName = fullName
+  user.phoneNumber = phoneNumber
+  await user.save();
+  res.status(200).json({success: true, message: 'User Updated successfully', user});
+} catch (error) {
+  console.error(error)
+  res.status(500).json({message: error.message});
+}
+
 };
+
+
 
 module.exports = {
   handleRegister,

@@ -126,7 +126,7 @@ const handleLogin = async (req, res) => {
     //generating a token (validity, period)
 
     const token = jwt.sign(
-      { email: user.email, role: user.role },
+      { email: user.email, role: user.role,  userId: user._id },
       process.env.JWT_SECRET,
       { expiresIn: "3 days" }
     );
@@ -139,6 +139,7 @@ const handleLogin = async (req, res) => {
         email: user.email,
         profilePicture: user.profilePicture,
         role: user.role,
+        phoneNumber: user.phoneNumber
       },
     });
   } catch (error) {
@@ -251,6 +252,14 @@ const handleResetPassword = async (req, res) => {
   }
 };
 
+const handleGetUser = async (req, res) => {
+  res.se("get user");
+};
+
+const handleUpdateUser = async (req, res) => {
+  res.send("change user");
+};
+
 module.exports = {
   handleRegister,
   handleVerifyEmail,
@@ -258,4 +267,6 @@ module.exports = {
   resendVerificationEmail,
   handleForgotPassword,
   handleResetPassword,
+  handleUpdateUser,
+  handleGetUser
 };

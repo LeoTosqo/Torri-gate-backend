@@ -3,7 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const generateToken = require("../helpers/generateToken");
 const { sendWelcomeEmail, sendResetEmail } = require("../email/sendEmail");
-
+const cloudinary = require("cloudinary").v2;
 //null undefined
 const handleRegister = async (req, res) => {
   const { fullName, email, password, phoneNumber, role } = req.body;
@@ -126,7 +126,7 @@ const handleLogin = async (req, res) => {
     //generating a token (validity, period)
 
     const token = jwt.sign(
-      { email: user.email, role: user.role,  userId: user._id },
+      { email: user.email, role: user.role, userId: user._id },
       process.env.JWT_SECRET,
       { expiresIn: "3 days" }
     );
@@ -139,7 +139,7 @@ const handleLogin = async (req, res) => {
         email: user.email,
         profilePicture: user.profilePicture,
         role: user.role,
-        phoneNumber: user.phoneNumber
+        phoneNumber: user.phoneNumber,
       },
     });
   } catch (error) {
@@ -215,7 +215,7 @@ const handleForgotPassword = async (req, res) => {
       success: true,
       token,
       message: "Password  resent Link sent to your email",
-    }); 
+    });
   } catch (error) {
     console.error(error);
 
@@ -259,6 +259,7 @@ const handleGetUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "user not found" });
     }
+
     res.status(200).json({ success: true, user });
   } catch (error) {
     console.error(error);
@@ -266,32 +267,47 @@ const handleGetUser = async (req, res) => {
   }
 };
 
-
-
 const handleUpdateUser = async (req, res) => {
-
-const {fullName,phoneNumber} = req.body
-const {userId} = req.user
-if(!fullName || !phoneNumber){
-  return res.status(400).json({message: "Provide fullName and phone number"})
-}
-try {
-  const user= await USER.findById(userId)
-  if (!user){
-    return res.status(404).json({message: "user not found"})
+  const { fullName, phoneNumber } = req.body;
+  console.log(req.body);
+  
+  const { userId } = req.user;
+  if (!fullName || !phoneNumber) {
+    return res
+      .status(400)
+      .json({ message: "Provide fullName and phone number" });
   }
-  user.fullName = fullName
-  user.phoneNumber = phoneNumber
-  await user.save();
-  res.status(200).json({success: true, message: 'User Updated successfully', user});
-} catch (error) {
-  console.error(error)
-  res.status(500).json({message: error.message});
-}
+  try {
+    const user = await USER.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "user not found" });
+    }
+    //upload with cloudinary
 
+    if (req.files && req.files.profilePicture) {
+      const profilePicture = req.files.profilePicture;
+      const result = await cloudinary.uploader.upload(
+        profilePicture.tempFilePath,
+        {
+          folder: "toriigate/profilePictures",
+          use_filename: true,
+          unique_filename: false,
+        }
+      );
+      user.profilePicture = result.secure_url;
+    }
+
+    user.fullName = fullName;
+    user.phoneNumber = phoneNumber;
+    await user.save();
+    res
+      .status(200)
+      .json({ success: true, message: "User Updated successfully", user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
 };
-
-
 
 module.exports = {
   handleRegister,
@@ -301,5 +317,5 @@ module.exports = {
   handleForgotPassword,
   handleResetPassword,
   handleUpdateUser,
-  handleGetUser
+  handleGetUser,
 };

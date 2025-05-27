@@ -39,7 +39,7 @@ price: {
 min: 0,
 },
 paymentPeriod: {
-    type: Number,
+    type: String,
     enum: ["yearly","monthly","weekly"],
 
 },

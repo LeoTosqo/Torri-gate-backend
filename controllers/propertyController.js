@@ -44,7 +44,7 @@ const updatePropertyAvailability = async (req, res) => {
   try {
     const property = await PROPERTY.findById(propertyId);
     property.availability = availability;
-    await property.send();
+    await property.save();
 
     res.status(200).json({
       success: true,
@@ -94,7 +94,7 @@ const getAllProperties = async (req, res) => {
     console.error(error);
     res.status(500).json({ message: error.message });
   }
-};
+};  
 
 const getAProperty = async (req, res) => {
   const { propertyId } = req.params;

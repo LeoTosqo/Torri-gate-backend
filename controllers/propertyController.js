@@ -72,6 +72,7 @@ const deleteProperty = async (req, res) => {
   const { propertyId } = req.params;
   try {
     await PROPERTY.findOneAndDelete({ landlord: userId, _id: propertyId });
+    res.status(200).json({ success: true, message: "Property deleted" });
   } catch (error) {
     console.error(error);
     res.status;
